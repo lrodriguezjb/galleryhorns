@@ -1,43 +1,116 @@
-function ArtHorn(image_url, title, description, keyword, horns) {
-  this.image_url = image_url;
-  this.title = title;
-  this.description = description;
-  this.keyword = keyword;
-  this.horns = horns;
-  allimages.push(this);
+("use strict");
+
+HornImage.all = [];
+
+function HornImage(item) {
+  this.image_url = item.image_url;
+  this.title = item.title;
+  this.description = item.description;
+  this.keyword = item.keyword;
+  this.horns = item.horns;
 }
 
-let allimages = [];
+HornImage.prototype.render = function() {
+  $("main").append('<div class="image-container"></div>');
+  let $imageContainer = $('div[class="image-container"]');
+  $imageContainer.html($("#photo-template").html());
+  $imageContainer.find("h2").text(this.title);
+  $imageContainer.find("img").attr("src", this.image_url);
+  $imageContainer.find("p").text(this.description);
+  $imageContainer.attr("class", this.keyword);
+  $imageContainer.removeClass("image-container");
+};
 
-$(document).ready(function() {
-  $.get("data/page-1.json").then(function(data) {
-    console.log(data);
-    for (let i = 0; i < data.length; i++) {
-      new ArtHorn(
-        data[i].image_url,
-        data[i].title,
-        data[i].description,
-        data[i].keyword,
-        data[i].horns
-      );
-      //   for (let j = 0; j < data[i].keyword.length; j++)
+HornImage.requestData = () => {
+  $.get("./data/page-1.json")
+    .then(data => {
+      data.forEach(item => {
+        HornImage.all.push(new HornImage(item));
+        var theTemplateScript = $("#address-template").html();
 
-      $("#key-container").html(`<option>${data[i].keyword}</option>`);
-      console.log(data[i].keyword);
+        // Compile the template
+        var theTemplate = Handlebars.compile(theTemplateScript);
+
+        // Define our data object
+        var context2 = {
+          image_url: item.image_url,
+          title: item.title,
+          description: item.description,
+          keyword: item.keyword,
+          horns: item.horns
+        };
+
+        // Pass our data to the template
+        var theCompiledHtml = theTemplate(context2);
+
+        // Add the compiled html to the page
+        $(".content-placeholder").html(theCompiledHtml);
+      });
+
+      HornImage.all.forEach(image => {
+        $("main").append(image.render());
+      });
+      HornImage.populateFilters();
+    })
+    .then(HornImage.filterSelected);
+};
+
+HornImage.populateFilters = () => {
+  let selectedItems = [];
+
+  HornImage.all.forEach(image => {
+    if (!selectedItems.includes(image.keyword)) {
+      selectedItems.push(image.keyword);
+      $("select").append(`<option>${image.keyword}</option>`);
     }
-
-    renderImages();
   });
-  console.log(allimages);
-});
+};
 
-// let images = new artHorn(
-// );
+HornImage.filterSelected = () => {
+  $("select").on("change", function() {
+    let selection = $(this).val();
+    if (selection !== "filter by keyword") {
+      $("div").hide();
+      $("div").removeClass("selected");
+      HornImage.all.forEach(image => {
+        if (image.keyword === selection) {
+          $(`div[class="${selection}"]`)
+            .addClass("selected")
+            .fadeIn();
+        }
+      });
+      $(`option[value="${selection}"]`).fadeIn();
+    }
+  });
+};
 
-function renderImages() {
-  for (let i = 0; i < allimages.length; i++) {
-    $("#photo-template").append(
-      `<section><h2>${allimages[i].title}</h2><img src="${allimages[i].image_url}"><p>${allimages[i].description}<p></section>`
-    );
-  }
-}
+$(() => HornImage.requestData());
+
+// ======================================================================
+
+// ===========================================
+
+// $(function() {
+//   // Grab the template script
+//   var theTemplateScript = $("#address-template").html();
+
+//   // Compile the template
+//   var theTemplate = Handlebars.compile(theTemplateScript);
+
+//   // Define our data object
+//   var context2 = {
+//     image_url:
+//       "http://3.bp.blogspot.com/_DBYF1AdFaHw/TE-f0cDQ24I/AAAAAAAACZg/l-FdTZ6M7z8/s1600/Unicorn_and_Narwhal_by_dinglehopper.jpg",
+//     title: "UniWhal",
+//     description:
+//       "A unicorn and a narwhal nuzzling their horns dfdfdfdfdfdfdfdfdf",
+//     keyword: "narwhal",
+//     horns: 1
+//   };
+
+//   // Pass our data to the template
+//   var theCompiledHtml = theTemplate(context2);
+
+//   // Add the compiled html to the page
+//   $(".content-placeholder").html(theCompiledHtml);
+// });
