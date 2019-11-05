@@ -1,116 +1,142 @@
-("use strict");
+"use strict";
+/*global $  Handlebars*/
 
-HornImage.all = [];
+//Global variables!
+let allImagesArr,
+  keywordArr,
+  hornsArr,
+  sortByArr,
+  sortedImgArr,
+  implementId,
+  optArr;
 
-function HornImage(item) {
-  this.image_url = item.image_url;
-  this.title = item.title;
-  this.description = item.description;
-  this.keyword = item.keyword;
-  this.horns = item.horns;
-}
+// Value of previously declared variables
+allImagesArr = [];
+keywordArr = ["Filter by Keyword"];
+hornsArr = ["Filter by Number of Horns"];
+sortByArr = ["Sort by", "title", "horns"];
+sortedImgArr = [];
+implementId = ["#section-template", "#option-template"];
+optArr = [
+  [".keywordFilter", keywordArr],
+  [".imgFilter", hornsArr],
+  [".sortFilter", sortByArr]
+];
 
-HornImage.prototype.render = function() {
-  $("main").append('<div class="image-container"></div>');
-  let $imageContainer = $('div[class="image-container"]');
-  $imageContainer.html($("#photo-template").html());
-  $imageContainer.find("h2").text(this.title);
-  $imageContainer.find("img").attr("src", this.image_url);
-  $imageContainer.find("p").text(this.description);
-  $imageContainer.attr("class", this.keyword);
-  $imageContainer.removeClass("image-container");
+let Images = function(image_url, title, description, keyword, horns) {
+  this.image_url = image_url;
+  this.title = title;
+  this.description = description;
+  this.keyword = keyword;
+  this.horns = horns;
+  allImagesArr.push(this);
 };
 
-HornImage.requestData = () => {
-  $.get("./data/page-1.json")
-    .then(data => {
-      data.forEach(item => {
-        HornImage.all.push(new HornImage(item));
-        var theTemplateScript = $("#address-template").html();
-
-        // Compile the template
-        var theTemplate = Handlebars.compile(theTemplateScript);
-
-        // Define our data object
-        var context2 = {
-          image_url: item.image_url,
-          title: item.title,
-          description: item.description,
-          keyword: item.keyword,
-          horns: item.horns
-        };
-
-        // Pass our data to the template
-        var theCompiledHtml = theTemplate(context2);
-
-        // Add the compiled html to the page
-        $(".content-placeholder").html(theCompiledHtml);
-      });
-
-      HornImage.all.forEach(image => {
-        $("main").append(image.render());
-      });
-      HornImage.populateFilters();
-    })
-    .then(HornImage.filterSelected);
+Images.prototype.renderImgs = function() {
+  htmlSetter(implementId[0], ".content-placeholder", allImagesArr);
 };
 
-HornImage.populateFilters = () => {
-  let selectedItems = [];
+let htmlSetter = (templateId, htmlClass, arr) => {
+  let templateScript = $(templateId).html();
+  let template = Handlebars.compile(templateScript);
+  let compiledHTML = template(arr);
+  $(htmlClass).html(compiledHTML);
+};
 
-  HornImage.all.forEach(image => {
-    if (!selectedItems.includes(image.keyword)) {
-      selectedItems.push(image.keyword);
-      $("select").append(`<option>${image.keyword}</option>`);
+let sorter = selection => {
+  sortedImgArr = allImagesArr.sort((a, b) => {
+    if (a[selection] < b[selection]) return -1;
+    if (a[selection] > b[selection]) return 1;
+    return 0;
+  });
+  sortedImgArr.forEach(titleSort => titleSort.renderImgs());
+};
+
+let initializer = imageJSON => {
+  imageJSON.forEach(hornImage => {
+    new Images(
+      hornImage.image_url,
+      hornImage.title,
+      hornImage.description,
+      hornImage.keyword,
+      hornImage.horns
+    );
+    if (!keywordArr.includes(hornImage.keyword)) {
+      keywordArr.push(hornImage.keyword);
+    }
+    if (!hornsArr.includes(hornImage.horns)) {
+      hornsArr.push(hornImage.horns);
     }
   });
+  optArr.forEach(value => htmlSetter(implementId[1], value[0], value[1]));
+  allImagesArr.forEach(hornImage => hornImage.renderImgs());
 };
 
-HornImage.filterSelected = () => {
-  $("select").on("change", function() {
-    let selection = $(this).val();
-    if (selection !== "filter by keyword") {
-      $("div").hide();
-      $("div").removeClass("selected");
-      HornImage.all.forEach(image => {
-        if (image.keyword === selection) {
-          $(`div[class="${selection}"]`)
-            .addClass("selected")
-            .fadeIn();
-        }
-      });
-      $(`option[value="${selection}"]`).fadeIn();
-    }
-  });
+let hideTool = () => {
+  $("section").hide();
+  $("h2").hide();
+  $("img").hide();
+  $("p").hide();
 };
 
-$(() => HornImage.requestData());
+let shower = tag => {
+  $(`section${tag}`).show();
+  $(`h2${tag}`).show();
+  $(`img${tag}`).show();
+  $(`p${tag}`).show();
+};
 
-// ======================================================================
+let defaulter = (option1, option2) => {
+  $(optArr[option1][0])[0].selectedIndex = "default";
+  $(optArr[option2][0])[0].selectedIndex = "default";
+};
 
-// ===========================================
+//Filters by Keyword
+$('select[class="keywordFilter"]').on("change", function() {
+  let $selection = $(this).val();
+  hideTool();
+  shower(`[alt="${$selection}"]`);
+  defaulter(1, 2);
+});
 
-// $(function() {
-//   // Grab the template script
-//   var theTemplateScript = $("#address-template").html();
+//Filters by Number of Horns
+$('select[class="imgFilter"]').on("change", function() {
+  let $selection = $(this).val();
+  hideTool();
+  shower(`[data-flavor="${$selection}"]`);
+  defaulter(0, 2);
+});
 
-//   // Compile the template
-//   var theTemplate = Handlebars.compile(theTemplateScript);
+$('select[class="sortFilter"]').on("change", function() {
+  let $selection = $(this).val();
+  $("main").empty();
+  sorter($selection);
+  $("section").show();
+  $("h2").show();
+  $("img").show();
+  $("p").show();
+  defaulter(0, 1);
+});
 
-//   // Define our data object
-//   var context2 = {
-//     image_url:
-//       "http://3.bp.blogspot.com/_DBYF1AdFaHw/TE-f0cDQ24I/AAAAAAAACZg/l-FdTZ6M7z8/s1600/Unicorn_and_Narwhal_by_dinglehopper.jpg",
-//     title: "UniWhal",
-//     description:
-//       "A unicorn and a narwhal nuzzling their horns dfdfdfdfdfdfdfdfdf",
-//     keyword: "narwhal",
-//     horns: 1
-//   };
+$('button[name="resetButton"]').click(function() {
+  location.reload();
+});
 
-//   // Pass our data to the template
-//   var theCompiledHtml = theTemplate(context2);
+// showing everything in the Dom
+Images.getAllImagesFromFile = fileName => {
+  let filePath = `${fileName}`;
+  let fileType = "json";
+  $.get(filePath, fileType).then(initializer);
+};
 
-//   // Add the compiled html to the page
-//   $(".content-placeholder").html(theCompiledHtml);
-// });
+$('button[class="page-1"]').click(function() {
+  allImagesArr.length = 0;
+  $("main").empty();
+  Images.getAllImagesFromFile("data/page-1.json");
+});
+
+$('button[class="page-2"]').click(function() {
+  allImagesArr.length = 0;
+  $("main").empty();
+  Images.getAllImagesFromFile("data/page-2.json");
+});
